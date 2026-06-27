@@ -1,6 +1,7 @@
 export interface Wallet {
 	id: string;
 	address: string;
+	label?: string;
 	network: "testnet" | "mainnet";
 	status: "active" | "pending" | "inactive";
 	createdAt: Date;
@@ -14,4 +15,6 @@ export type WalletStatus = Wallet["status"];
 export interface WalletTableProps {
 	wallets: Wallet[];
 	onAddWallet?: () => void;
+	onCopySuccess?: (address: string) => void;
+	onCopyError?: (error: string) => void;
 }

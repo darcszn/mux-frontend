@@ -12,6 +12,7 @@ export interface AddWalletModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onAdd: (wallet: Wallet) => void;
+	existingAddresses?: string[];
 }
 
 type Step = "form" | "submitting" | "success";
@@ -20,6 +21,18 @@ type Step = "form" | "submitting" | "success";
 
 function generateId(): string {
 	return `wallet-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function validateLabel(value: string): { valid: boolean; error?: string } {
+	const trimmed = value.trim();
+	if (!trimmed) return { valid: true };
+	if (trimmed.length > 30) {
+		return { valid: false, error: "Label must be 30 characters or less." };
+	}
+	if (/[<>"'&]/.test(trimmed)) {
+		return { valid: false, error: "Label contains invalid characters." };
+	}
+	return { valid: true };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -42,14 +55,18 @@ export function AddWalletModal({
 	isOpen,
 	onClose,
 	onAdd,
+	existingAddresses,
 }: AddWalletModalProps) {
 	const addressId = useId();
 	const networkId = useId();
+	const labelId = useId();
 
 	const [step, setStep] = useState<Step>("form");
 	const [address, setAddress] = useState("");
 	const [network, setNetwork] = useState<WalletNetwork>("mainnet");
+	const [label, setLabel] = useState("");
 	const [addressError, setAddressError] = useState<string | undefined>();
+	const [labelError, setLabelError] = useState<string | undefined>();
 	const [addedWallet, setAddedWallet] = useState<Wallet | null>(null);
 
 	const addressInputRef = useRef<HTMLInputElement>(null);
@@ -58,7 +75,6 @@ export function AddWalletModal({
 	// Focus address input when modal opens
 	useEffect(() => {
 		if (isOpen && step === "form") {
-			// Small delay to allow the DOM to settle
 			const id = setTimeout(() => addressInputRef.current?.focus(), 50);
 			return () => clearTimeout(id);
 		}
@@ -80,7 +96,9 @@ export function AddWalletModal({
 		setStep("form");
 		setAddress("");
 		setNetwork("mainnet");
+		setLabel("");
 		setAddressError(undefined);
+		setLabelError(undefined);
 		setAddedWallet(null);
 	}
 
@@ -91,24 +109,55 @@ export function AddWalletModal({
 
 	function handleAddressChange(value: string) {
 		setAddress(value);
-		// Clear error on change so the user gets immediate feedback
 		if (addressError) setAddressError(undefined);
 	}
 
+	function handleLabelChange(value: string) {
+		setLabel(value);
+		if (labelError) setLabelError(undefined);
+	}
+
+	function isDuplicateAddress(addr: string): boolean {
+		const trimmed = addr.trim();
+		return !!existingAddresses?.some((a) => a.trim() === trimmed);
+	}
+
 	function handleAddressBlur() {
-		if (address.trim()) {
-			const { valid, error } = validateStellarAddress(address);
-			if (!valid) setAddressError(error);
+		if (!address.trim()) return;
+		const { valid, error } = validateStellarAddress(address);
+		if (!valid) {
+			setAddressError(error);
+			return;
 		}
+		if (isDuplicateAddress(address)) {
+			setAddressError("This address has already been added.");
+		}
+	}
+
+	function handleLabelBlur() {
+		const { valid, error } = validateLabel(label);
+		if (!valid) setLabelError(error);
 	}
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 
-		const { valid, error } = validateStellarAddress(address);
-		if (!valid) {
-			setAddressError(error);
+		const addrResult = validateStellarAddress(address);
+		if (!addrResult.valid) {
+			setAddressError(addrResult.error);
 			addressInputRef.current?.focus();
+			return;
+		}
+
+		if (isDuplicateAddress(address)) {
+			setAddressError("This address has already been added.");
+			addressInputRef.current?.focus();
+			return;
+		}
+
+		const lblResult = validateLabel(label);
+		if (!lblResult.valid) {
+			setLabelError(lblResult.error);
 			return;
 		}
 
@@ -117,9 +166,11 @@ export function AddWalletModal({
 		// Simulate async persistence (replace with real API call)
 		await new Promise((resolve) => setTimeout(resolve, 800));
 
+		const trimmedLabel = label.trim();
 		const newWallet: Wallet = {
 			id: generateId(),
 			address: address.trim(),
+			label: trimmedLabel || undefined,
 			network,
 			status: "pending",
 			createdAt: new Date(),
@@ -131,6 +182,8 @@ export function AddWalletModal({
 	}
 
 	if (!isOpen) return null;
+
+	const charCount = address.trim().length;
 
 	return (
 		<div
@@ -220,9 +273,23 @@ export function AddWalletModal({
 											<FieldError message={addressError} />
 										</span>
 									)}
-									<p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-										56-character Stellar public key starting with G.
-									</p>
+									<div className="mt-1.5 flex items-center justify-between">
+										<p className="text-xs text-zinc-500 dark:text-zinc-400">
+											56-character Stellar public key starting with G.
+										</p>
+										{charCount > 0 && (
+											<span
+												data-testid="char-count"
+												className={`text-xs font-mono ${
+													charCount === 56
+														? "text-green-600 dark:text-green-400"
+														: "text-zinc-400 dark:text-zinc-500"
+												}`}
+											>
+												{charCount}/56
+											</span>
+										)}
+									</div>
 								</div>
 
 								{/* Network field */}
@@ -250,6 +317,53 @@ export function AddWalletModal({
 										<option value="mainnet">Mainnet</option>
 										<option value="testnet">Testnet</option>
 									</select>
+								</div>
+
+								{/* Label field (optional) */}
+								<div>
+									<label
+										htmlFor={labelId}
+										className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+									>
+										Label{" "}
+										<span className="font-normal text-zinc-400 dark:text-zinc-500">
+											(optional)
+										</span>
+									</label>
+									<input
+										id={labelId}
+										type="text"
+										value={label}
+										onChange={(e) => handleLabelChange(e.target.value)}
+										onBlur={handleLabelBlur}
+										placeholder="e.g. Main wallet"
+										autoComplete="off"
+										aria-describedby={
+											labelError ? `${labelId}-error` : undefined
+										}
+										aria-invalid={!!labelError}
+										className={`
+											w-full rounded-lg border px-3 py-2 text-sm
+											text-zinc-900 placeholder-zinc-400 outline-none
+											transition-colors
+											dark:bg-zinc-800 dark:text-zinc-50 dark:placeholder-zinc-500
+											focus:ring-2 focus:ring-zinc-900/20 dark:focus:ring-zinc-50/20
+											${
+												labelError
+													? "border-red-400 focus:border-red-400 dark:border-red-500"
+													: "border-zinc-300 focus:border-zinc-500 dark:border-zinc-700 dark:focus:border-zinc-500"
+											}
+										`}
+									/>
+									{labelError ? (
+										<span id={`${labelId}-error`}>
+											<FieldError message={labelError} />
+										</span>
+									) : (
+										<p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+											A friendly name to identify this wallet. Max 30 characters.
+										</p>
+									)}
 								</div>
 							</div>
 						</form>
@@ -287,6 +401,16 @@ export function AddWalletModal({
 
 							<div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800">
 								<dl className="space-y-2 text-sm">
+									{addedWallet.label && (
+										<div className="flex justify-between gap-4">
+											<dt className="text-zinc-500 dark:text-zinc-400">
+												Label
+											</dt>
+											<dd className="truncate text-zinc-900 dark:text-zinc-50">
+												{addedWallet.label}
+											</dd>
+										</div>
+									)}
 									<div className="flex justify-between gap-4">
 										<dt className="text-zinc-500 dark:text-zinc-400">
 											Address

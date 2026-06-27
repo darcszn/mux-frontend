@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { Wallet } from "@/types/wallet";
@@ -78,5 +78,57 @@ describe("WalletTable", () => {
 		render(<WalletTable wallets={mockWallets} onAddWallet={onAddWallet} />);
 		await user.click(screen.getByRole("button", { name: /add wallet/i }));
 		expect(onAddWallet).toHaveBeenCalledOnce();
+	});
+
+	describe("copy callbacks", () => {
+		it("calls onCopySuccess with the full address after a successful copy", async () => {
+			const user = userEvent.setup();
+			const onCopySuccess = vi.fn();
+			render(
+				<WalletTable wallets={mockWallets} onCopySuccess={onCopySuccess} />,
+			);
+
+			// Click the first copy button (multiple rendered for desktop + mobile)
+			const copyButtons = screen.getAllByTitle("Copy address");
+			await user.click(copyButtons[0]);
+
+			await waitFor(() =>
+				expect(onCopySuccess).toHaveBeenCalledWith(mockWallets[0].address),
+			);
+		});
+
+		it("does not throw when onCopySuccess is omitted", async () => {
+			const user = userEvent.setup();
+			render(<WalletTable wallets={[mockWallets[0]]} />);
+			const copyButton = screen.getAllByTitle("Copy address")[0];
+			await expect(user.click(copyButton)).resolves.not.toThrow();
+		});
+
+		it("does not throw when onCopyError is omitted", async () => {
+			// Simulate clipboard failure
+			vi.spyOn(navigator.clipboard, "writeText").mockRejectedValueOnce(
+				new Error("Permission denied"),
+			);
+			const user = userEvent.setup();
+			render(<WalletTable wallets={[mockWallets[0]]} />);
+			const copyButton = screen.getAllByTitle("Copy address")[0];
+			await expect(user.click(copyButton)).resolves.not.toThrow();
+		});
+
+		it("calls onCopyError when clipboard write fails", async () => {
+			vi.spyOn(navigator.clipboard, "writeText").mockRejectedValueOnce(
+				new Error("Permission denied"),
+			);
+			const user = userEvent.setup();
+			const onCopyError = vi.fn();
+			render(
+				<WalletTable wallets={[mockWallets[0]]} onCopyError={onCopyError} />,
+			);
+
+			const copyButton = screen.getAllByTitle("Copy address")[0];
+			await user.click(copyButton);
+
+			await waitFor(() => expect(onCopyError).toHaveBeenCalled());
+		});
 	});
 });

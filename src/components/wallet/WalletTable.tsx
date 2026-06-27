@@ -102,7 +102,12 @@ function WalletAddressCell({
 	);
 }
 
-export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
+export function WalletTable({
+	wallets,
+	onAddWallet,
+	onCopySuccess,
+	onCopyError,
+}: WalletTableProps) {
 	const router = useRouter();
 	const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 	const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
@@ -140,12 +145,13 @@ export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
 					setFocusedIndex(0);
 					rowRefs.current[0]?.focus();
 					break;
-				case "End":
+				case "End": {
 					event.preventDefault();
 					const lastIndex = wallets.length - 1;
 					setFocusedIndex(lastIndex);
 					rowRefs.current[lastIndex]?.focus();
 					break;
+				}
 			}
 		},
 		[wallets, router],
@@ -215,6 +221,8 @@ export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
 													<WalletAddressCell
 														address={wallet.address}
 														network={wallet.network}
+														onCopySuccess={onCopySuccess}
+														onCopyError={onCopyError}
 													/>
 												</Link>
 											</TableCell>
@@ -279,6 +287,8 @@ export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
 												<WalletAddressCell
 													address={wallet.address}
 													network={wallet.network}
+													onCopySuccess={onCopySuccess}
+													onCopyError={onCopyError}
 												/>
 											</div>
 											<div className="flex flex-shrink-0 gap-2">
