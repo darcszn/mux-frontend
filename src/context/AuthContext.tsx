@@ -9,8 +9,11 @@ import {
 } from "react";
 
 export interface AuthUser {
+	/** The user's display name */
 	name: string;
+	/** The user's email address */
 	email: string;
+	/** The user's role, e.g. "admin" or "developer" */
 	role: string;
 }
 
@@ -22,10 +25,19 @@ interface SessionRecord {
 }
 
 interface AuthContextValue {
+	/** The currently authenticated user, or null if not signed in. */
 	user: AuthUser | null;
+	/** True while the session is being rehydrated from storage on mount. */
 	isLoading: boolean;
+	/** True when a valid, non-expired session exists. */
 	isAuthenticated: boolean;
+	/**
+	 * Persist the authenticated user and start a session.
+	 * @param user - The authenticated user object returned by the API.
+	 * @param ttlMs - Session lifetime in milliseconds. Defaults to 8 hours.
+	 */
 	signIn: (user: AuthUser, ttlMs?: number) => void;
+	/** Clear the session and sign the user out. */
 	signOut: () => void;
 }
 
@@ -59,6 +71,20 @@ function clearSessionCookie(): void {
 // Provider
 // ---------------------------------------------------------------------------
 
+/**
+ * Provides authentication state and actions to the component tree.
+ *
+ * On mount it rehydrates the session from `sessionStorage` and validates the
+ * expiry timestamp. Place this at the root of the application so all
+ * descendants can call `useAuth()`.
+ *
+ * @example
+ * ```tsx
+ * <AuthProvider>
+ *   <App />
+ * </AuthProvider>
+ * ```
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const [user, setUser] = useState<AuthUser | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -131,6 +157,19 @@ export const SessionProvider = AuthProvider;
 // Hook
 // ---------------------------------------------------------------------------
 
+/**
+ * Returns the current auth context value.
+ *
+ * Must be called inside an `AuthProvider` (or its `SessionProvider` alias).
+ * Throws if used outside of the provider.
+ *
+ * @returns `{ user, isLoading, isAuthenticated, signIn, signOut }`
+ *
+ * @example
+ * ```tsx
+ * const { user, signOut } = useAuth();
+ * ```
+ */
 export function useAuth(): AuthContextValue {
 	const ctx = useContext(AuthContext);
 	if (!ctx) {

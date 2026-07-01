@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useEffect, useState } from "react";
 import { AuthLoadingSkeleton } from "@/components/layouts/AuthLoadingSkeleton";
 import { useAuth } from "@/context/AuthContext";
+import { ToastContainer, useToast } from "@/components/ui/Toast";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -23,6 +24,14 @@ interface FieldErrors {
 // API call — #325: wire to backend via POST /api/auth/login
 // ---------------------------------------------------------------------------
 
+/**
+ * Sends login credentials to the backend and returns the authenticated user.
+ *
+ * @param email - The user's email address.
+ * @param password - The user's password (plaintext; HTTPS in production).
+ * @returns The authenticated user record `{ name, email, role }`.
+ * @throws {Error} When the response is not OK or the user payload is missing.
+ */
 async function authenticateUser(
 	email: string,
 	password: string,
@@ -74,6 +83,12 @@ function validate(fields: LoginFormState): FieldErrors {
 // #327: Styled error card component
 // ---------------------------------------------------------------------------
 
+/**
+ * Inline error banner displayed below the page header when a submit error occurs.
+ *
+ * @param message - The error text to display.
+ * @param onDismiss - Callback invoked when the user clicks the dismiss (×) button.
+ */
 function LoginErrorCard({
 	message,
 	onDismiss,
@@ -131,6 +146,10 @@ function LoginErrorCard({
 // #326: Empty/welcome state shown before the user starts typing
 // ---------------------------------------------------------------------------
 
+/**
+ * Informational banner shown when the login form is in its pristine (untouched) state.
+ * Disappears as soon as the user begins entering credentials or a submit error appears.
+ */
 function LoginWelcomeHint() {
 	return (
 		<div
@@ -153,6 +172,7 @@ function LoginPageContent() {
 	const { isAuthenticated, isLoading, signIn } = useAuth();
 	const router = useRouter();
 	const searchParams = useSearchParams();
+	const { toasts, addToast, dismissToast } = useToast();
 
 	const [fields, setFields] = useState<LoginFormState>({
 		email: "",
@@ -197,13 +217,15 @@ function LoginPageContent() {
 		try {
 			const user = await authenticateUser(fields.email, fields.password);
 			signIn(user);
+			addToast({ type: "success", message: "Signed in successfully!", description: `Welcome back, ${user.name}.` });
 			router.replace(callbackUrl);
 		} catch (err) {
-			setSubmitError(
+			const message =
 				err instanceof Error
 					? err.message
-					: "Sign in failed. Please check your credentials and try again.",
-			);
+					: "Sign in failed. Please check your credentials and try again.";
+			setSubmitError(message);
+			addToast({ type: "error", message: "Sign in failed", description: message });
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -217,6 +239,7 @@ function LoginPageContent() {
 
 	return (
 		<div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+			<ToastContainer toasts={toasts} onDismiss={dismissToast} position="top-right" />
 			<div className="w-full max-w-md">
 				{/* Logo / brand */}
 				<div className="mb-8 text-center">

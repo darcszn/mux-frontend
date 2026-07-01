@@ -102,7 +102,12 @@ function WalletAddressCell({
 	);
 }
 
-export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
+export function WalletTable({
+	wallets,
+	onAddWallet,
+	onCopySuccess,
+	onCopyError,
+}: WalletTableProps) {
 	const router = useRouter();
 	const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 	const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
@@ -140,12 +145,13 @@ export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
 					setFocusedIndex(0);
 					rowRefs.current[0]?.focus();
 					break;
-				case "End":
+				case "End": {
 					event.preventDefault();
 					const lastIndex = wallets.length - 1;
 					setFocusedIndex(lastIndex);
 					rowRefs.current[lastIndex]?.focus();
 					break;
+				}
 			}
 		},
 		[wallets, router],
@@ -205,16 +211,35 @@ export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{wallets.map((wallet) => (
-										<TableRow key={wallet.id}>
+									{wallets.map((wallet, index) => (
+										<TableRow
+											key={wallet.id}
+											data-testid={`wallet-row-${index}`}
+											tabIndex={0}
+											ref={(el: HTMLTableRowElement | null) => {
+												rowRefs.current[index] = el;
+											}}
+											onKeyDown={(e) => handleKeyDown(e, index)}
+											onFocus={() => handleRowFocus(index)}
+											onBlur={handleRowBlur}
+											aria-label={`${truncateAddress(wallet.address)}, ${wallet.network}, ${wallet.status}`}
+											className={
+												focusedIndex === index
+													? "ring-2 ring-blue-500 dark:ring-blue-400 focus:outline-none"
+													: "focus:outline-none"
+											}
+										>
 											<TableCell>
 												<Link
 													href={`/demo/dashboard/wallets/${wallet.id}`}
 													className="block"
+													tabIndex={-1}
 												>
 													<WalletAddressCell
 														address={wallet.address}
 														network={wallet.network}
+														onCopySuccess={onCopySuccess}
+														onCopyError={onCopyError}
 													/>
 												</Link>
 											</TableCell>
@@ -222,6 +247,7 @@ export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
 												<Link
 													href={`/demo/dashboard/wallets/${wallet.id}`}
 													className="block"
+													tabIndex={-1}
 												>
 													<NetworkBadge network={wallet.network} />
 												</Link>
@@ -230,6 +256,7 @@ export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
 												<Link
 													href={`/demo/dashboard/wallets/${wallet.id}`}
 													className="block"
+													tabIndex={-1}
 												>
 													<StatusIndicator status={wallet.status} />
 												</Link>
@@ -238,6 +265,7 @@ export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
 												<Link
 													href={`/demo/dashboard/wallets/${wallet.id}`}
 													className="block text-zinc-700 dark:text-zinc-300"
+													tabIndex={-1}
 												>
 													{wallet.balance ?? "—"}
 												</Link>
@@ -246,6 +274,7 @@ export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
 												<Link
 													href={`/demo/dashboard/wallets/${wallet.id}`}
 													className="block"
+													tabIndex={-1}
 												>
 													{formatDate(wallet.createdAt)}
 												</Link>
@@ -254,6 +283,7 @@ export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
 												<Link
 													href={`/demo/dashboard/wallets/${wallet.id}`}
 													className="block"
+													tabIndex={-1}
 												>
 													{formatDate(wallet.lastActivity)}
 												</Link>
@@ -279,6 +309,8 @@ export function WalletTable({ wallets, onAddWallet }: WalletTableProps) {
 												<WalletAddressCell
 													address={wallet.address}
 													network={wallet.network}
+													onCopySuccess={onCopySuccess}
+													onCopyError={onCopyError}
 												/>
 											</div>
 											<div className="flex flex-shrink-0 gap-2">

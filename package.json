@@ -30,6 +30,13 @@
 		"tailwind-merge": "^3.4.0"
 	},
 	"devDependencies": {
+		"@storybook/addon-a11y": "^8.6.0",
+		"@storybook/addon-essentials": "^8.6.0",
+		"@storybook/addon-interactions": "^8.6.0",
+		"@storybook/nextjs": "^8.6.0",
+		"@storybook/react": "^8.6.0",
+		"@storybook/test": "^8.6.0",
+		"storybook": "^8.6.0",
 		"@biomejs/biome": "2.3.11",
 		"@storybook/addon-essentials": "^8.6.14",
 		"@storybook/react": "^10.4.6",

@@ -4,6 +4,7 @@ export type ToastVariant = "success" | "error" | "info";
 
 export interface ToastProps {
 	open: boolean;
+	/** The message body displayed inside the toast. */
 	message: string;
 	/** Visual variant controlling icon and colour scheme. Defaults to "success". */
 	variant?: ToastVariant;
